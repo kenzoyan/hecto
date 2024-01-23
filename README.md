@@ -1,0 +1,1 @@
+Hecto Text Editor
