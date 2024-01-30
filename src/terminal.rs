@@ -5,6 +5,7 @@ use crossterm::{
     event::{read, Event, KeyEvent},
     cursor::{self,MoveTo},
 };
+use crate::Position;
 
 pub struct Size {
     pub width: u16,
@@ -36,9 +37,11 @@ impl Terminal {
         execute!(io::stdout(), Clear(ClearType::All)).expect("Failed to clear the screen");
     }
 
-    pub fn cursor_position(x:u16, y:u16) {
-        let x = x.saturating_add(1);
-        let y = y.saturating_add(1);
+    #[allow(clippy::cast_possible_truncation)]
+    pub fn cursor_position(position: &Position) {
+        let Position {x, y} = position;
+        let x = x.saturating_add(1) as u16;
+        let y = y.saturating_add(1) as u16;
         execute!(io::stdout(), MoveTo(x,y)).expect("Failed to move the cursor");
     }
 

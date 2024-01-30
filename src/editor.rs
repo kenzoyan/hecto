@@ -1,14 +1,21 @@
 use crate::Terminal;
 use std::io::{self};
 use crossterm::{
-    terminal::{enable_raw_mode, disable_raw_mode},
+    terminal::{disable_raw_mode, enable_raw_mode},
     event::{KeyCode, KeyEvent, KeyEventKind, KeyModifiers},
 };
 
 const VERSION: &str = env!("CARGO_PKG_VERSION");
+
+pub struct  Position {
+    pub x: usize,
+    pub y: usize,
+}
+
 pub struct Editor {
     should_quit: bool,
     terminal: Terminal,
+    cursor_position: Position,
 }
 
 impl Editor{
@@ -37,6 +44,7 @@ impl Editor{
         Self{
             should_quit:false,
             terminal: Terminal::default().expect("Failed to initialize terminal"),
+            cursor_position: Position { x: 0, y: 0 },
         }
     }
 
@@ -46,6 +54,8 @@ impl Editor{
             match code {
                 KeyCode::Char('q') if modifiers.contains(KeyModifiers::CONTROL) => self.should_quit = true,
                 KeyCode::Char(c) => println!("Char: {:?} ({})\r", c as u8, c),
+                KeyCode::Up | KeyCode::Down | KeyCode::Left | KeyCode::Right => self.move_cursor(code),
+                KeyCode::PageUp | KeyCode::PageDown | KeyCode::End | KeyCode::Home => self.move_cursor(code),
                 _ => ()
             }
         }
@@ -54,17 +64,44 @@ impl Editor{
 
     fn refresh_screen(&self) -> Result<(), std::io::Error> {
         Terminal::cursor_hide();
-        Terminal::cursor_position(0, 0);
+        Terminal::cursor_position(&Position {x: 0, y: 0});
         if self.should_quit {
             Terminal::clear_screen();
             println!("Goodbye.\r");
         } else {
             self.draw_rows();
-            Terminal::cursor_position(0, 0);
+            Terminal::cursor_position(&self.cursor_position);
 
         }
         Terminal::cursor_show();
         Terminal::flush()
+    }
+
+    fn move_cursor(&mut self, key_code: KeyCode) {
+        let Position { mut y, mut x } = self.cursor_position;
+        let window_size = self.terminal.size();
+        let height = window_size.height.saturating_sub(1) as usize;
+        let width = window_size.width.saturating_sub(1) as usize;
+        match key_code {
+            KeyCode::Up => y = y.saturating_sub(1),
+            KeyCode::Down => {
+                if y < height {
+                    y = y.saturating_add(1);
+                }
+            },
+            KeyCode::Left => x = x.saturating_sub(1),
+            KeyCode::Right => {
+                if x < width {
+                    x = x.saturating_add(1);
+                }
+            },
+            KeyCode::PageUp => y = 0,
+            KeyCode::PageDown => y = height,
+            KeyCode::Home => x = 0,
+            KeyCode::End => x = width,
+            _ => (),
+        }
+        self.cursor_position = Position {x, y}
     }
 
     fn draw_welcome_msg(&self) {
