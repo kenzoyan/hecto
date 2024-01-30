@@ -61,4 +61,9 @@ impl Terminal {
     pub fn cursor_show() {
         execute!(io::stdout(), cursor::Show).expect("Failed to show the cursor");
     }
+
+    pub fn clear_current_line() {
+        execute!(io::stdout(), Clear(ClearType::CurrentLine)).expect("Failed to clear the screen");
+
+    }
 }
