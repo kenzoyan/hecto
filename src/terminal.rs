@@ -23,7 +23,7 @@ impl Terminal {
         Ok(Self {
             size: Size {
                 width: size.0,
-                height: size.1,
+                height: size.1.saturating_sub(3),
             },
             _stdout: io::stdout(),
         })
@@ -40,7 +40,7 @@ impl Terminal {
     #[allow(clippy::cast_possible_truncation)]
     pub fn cursor_position(position: &Position) {
         let Position {x, y} = position;
-        let x = x.saturating_add(1) as u16;
+        let x = x.saturating_add(0) as u16;
         let y = y.saturating_add(1) as u16;
         execute!(io::stdout(), MoveTo(x,y)).expect("Failed to move the cursor");
     }
