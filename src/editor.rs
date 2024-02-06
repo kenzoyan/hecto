@@ -83,7 +83,7 @@ impl Editor{
         let Position { x, y } = self.cursor_position;
         let width = self.terminal.size().width as usize;
         let height = self.terminal.size().height as usize;
-        let mut offset = &mut self.offset;
+        let offset = &mut self.offset;
         if y < offset.y {
             offset.y = y;
         } else if y >= offset.y.saturating_add(height) {
@@ -116,10 +116,10 @@ impl Editor{
     }
 
     fn move_cursor(&mut self, key_code: KeyCode) {
+        let terminal_height = self.terminal.size().height as usize;
         let Position { mut y, mut x } = self.cursor_position;
-        let window_size = self.terminal.size();
         let height = self.document.len();
-        let width = if let Some(row) = self.document.row(y) {
+        let mut width = if let Some(row) = self.document.row(y) {
             row.len()
         } else {
             0
@@ -131,18 +131,53 @@ impl Editor{
                     y = y.saturating_add(1);
                 }
             },
-            KeyCode::Left => x = x.saturating_sub(1),
+            KeyCode::Left => {
+                if x > 0 {
+                    x -= 1;
+                } else if y > 0 {
+                    y -= 1;
+                    if let Some(row) = self.document.row(y) {
+                        x = row.len();
+                    } else {
+                        x = 0;
+                    }
+                }
+            }
             KeyCode::Right => {
                 if x < width {
-                    x = x.saturating_add(1);
+                    x += 1;
+                } else if y < height {
+                    y += 1;
+                    x = 0;
                 }
             },
-            KeyCode::PageUp => y = 0,
-            KeyCode::PageDown => y = height,
+            KeyCode::PageUp => {
+                y = if y > terminal_height {
+                    y - terminal_height
+                } else {
+                    0
+                }
+            }
+            KeyCode::PageDown => {
+                y = if y.saturating_add(terminal_height) < height {
+                    y + terminal_height as usize
+                } else {
+                    height
+                }
+            }
             KeyCode::Home => x = 0,
             KeyCode::End => x = width,
             _ => (),
         }
+        width = if let Some(row) = self.document.row(y) {
+            row.len()
+        } else {
+            0
+        };
+        if x > width {
+            x = width;
+        }
+
         self.cursor_position = Position {x, y}
     }
 
@@ -184,35 +219,3 @@ fn die(e: &std::io::Error) {
     Terminal::clear_screen();
     panic!("{}", e);
 }
-
-// pub fn run(&self){
-//     enable_raw_mode().expect("Failed to enable raw mode");
-
-//     let mut stdout = io::stdout();
-
-//     loop {
-//         match read() {
-//             Ok(Event::Key(KeyEvent { code, modifiers, kind, .. })) => { // Using `..` to ignore other fields
-//                 if kind==KeyEventKind::Press {
-//                     match code {
-//                         KeyCode::Char('q') if modifiers.contains(KeyModifiers::CONTROL) => break,
-//                         KeyCode::Char(c) => {
-//                             if c.is_control() {
-//                                 println!("Control char: {:?}\r", c as u8);
-//                             } else {
-//                                 println!("Char: {:?} ({})\r", c as u8, c);
-//                             }
-//                         }
-//                         _ => println!("Other keycode: {code:?}\r"),
-//                     }
-//                 }
-//                 // Flush stdout after each print
-//                 stdout.flush().unwrap();
-//             }
-//             Ok(_) => {}, // Ignore other types of events
-//             Err(err) => die(&err),
-//         }
-//     }
-
-//     disable_raw_mode().expect("Failed to disable raw mode");
-// }
