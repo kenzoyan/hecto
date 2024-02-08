@@ -4,6 +4,7 @@ use crossterm::{
     terminal::{size,Clear,ClearType},
     event::{read, Event, KeyEvent},
     cursor::{self,MoveTo},
+    style::{self, Color},
 };
 use crate::Position;
 
@@ -67,6 +68,22 @@ impl Terminal {
 
     pub fn clear_current_line() {
         execute!(io::stdout(), Clear(ClearType::CurrentLine)).expect("Failed to clear the screen");
+    }
+    
+    pub fn set_bg_color(color:Color) {
+        execute!(io::stdout(), style::SetBackgroundColor(color)).expect("Failed to set bg color");
+    }
+
+    pub fn reset_bg_color() {
+        execute!(io::stdout(), style::ResetColor).expect("Failed to reset bg color");
+
+    }
+    pub fn set_fg_color(color:Color) {
+        execute!(io::stdout(), style::SetForegroundColor(color) ).expect("Failed to set fg color");
+    }
+
+    pub fn reset_fg_color() {
+        execute!(io::stdout(), style::ResetColor).expect("Failed to reset fg color");
 
     }
 }
