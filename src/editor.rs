@@ -93,7 +93,10 @@ impl Editor{
         if kind==KeyEventKind::Press {
             match code {
                 KeyCode::Char('q') if modifiers.contains(KeyModifiers::CONTROL) => self.should_quit = true,
-                KeyCode::Char(c) => println!("Char: {:?} ({})\r", c as u8, c),
+                KeyCode::Char(c) => {
+                    self.document.insert(&self.cursor_position, c);
+                    self.move_cursor(KeyCode::Right);
+                },
                 KeyCode::Up | KeyCode::Down | KeyCode::Left | KeyCode::Right => self.move_cursor(code),
                 KeyCode::PageUp | KeyCode::PageDown | KeyCode::End | KeyCode::Home => self.move_cursor(code),
                 _ => ()
