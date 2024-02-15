@@ -97,6 +97,10 @@ impl Editor{
                     self.document.insert(&self.cursor_position, c);
                     self.move_cursor(KeyCode::Right);
                 },
+                KeyCode::Enter => {
+                    self.document.insert(&self.cursor_position, '\n');
+                    self.move_cursor(KeyCode::Right);
+                },
                 KeyCode::Delete => self.document.delete(&self.cursor_position),
                 KeyCode::Backspace => {
                     if self.cursor_position.x > 0 || self.cursor_position.y > 0 {
