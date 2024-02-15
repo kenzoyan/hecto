@@ -1,6 +1,7 @@
 use crate::Row;
-use std::fs;
 use crate::Position;
+use std::fs;
+use std::io::{Error, Write};
 #[derive(Default)]
 pub struct Document {
     rows: Vec<Row>,
@@ -18,6 +19,17 @@ impl Document {
             rows,
             file_name: Some(filename.to_string()),
          })
+    }
+
+    pub fn save(&self) -> Result<(), Error> {
+        if let Some(file_name) = &self.file_name {
+            let mut file = fs::File::create(file_name)?;
+            for row in &self.rows {
+                file.write_all(row.as_bytes())?;
+                file.write_all(b"\n")?;
+            }  
+        }
+        Ok(())
     }
     pub fn row(&self, index:usize) -> Option<&Row> {
         self.rows.get(index)
