@@ -87,20 +87,29 @@ impl Editor{
             status_message: StatusMessage::from(initial_status),
         }
     }
+    fn save(&mut self) {
+        if self.document.file_name.is_none() {
+            let new_name = self.prompt("Save as: ").unwrap_or(None);
+            if new_name.is_none() {
+                self.status_message = StatusMessage::from("Save aborted.".to_string());
+                return;
+            }
+            self.document.file_name = new_name;
+        }
 
+        if self.document.save().is_ok() {
+            self.status_message = StatusMessage::from("File saved successfully.".to_string());     
+        } else {
+            self.status_message = StatusMessage::from("Error writing file!".to_string());     
+
+        }
+    }
     fn process_keypress(&mut self) -> Result<(), std::io::Error> {
         let KeyEvent{code, modifiers, kind, .. } = Terminal::read_key_event()?;
         if kind==KeyEventKind::Press {
             match code {
                 KeyCode::Char('q') if modifiers.contains(KeyModifiers::CONTROL) => self.should_quit = true,
-                KeyCode::Char('s') if modifiers.contains(KeyModifiers::CONTROL) => {
-                    if self.document.save().is_ok() {
-                        self.status_message = StatusMessage::from("File saved successfully.".to_string());     
-                    } else {
-                        self.status_message = StatusMessage::from("Error writing file!".to_string());     
-
-                    }
-                }
+                KeyCode::Char('s') if modifiers.contains(KeyModifiers::CONTROL) => self.save(),
                 KeyCode::Char(c) => {
                     self.document.insert(&self.cursor_position, c);
                     self.move_cursor(KeyCode::Right);
@@ -296,6 +305,37 @@ impl Editor{
             text.truncate(self.terminal.size().width as usize);
             print!("{}", text)
         }
+    }
+    fn prompt(&mut self, prompt: &str) -> Result<Option<String>, std::io::Error> {
+        let mut result = String::new();
+        loop {
+            self.status_message = StatusMessage::from(format!("{}{}", prompt, result));
+            self.refresh_screen()?;
+            let key_event = Terminal::read_key_event()?; 
+            if key_event.kind == KeyEventKind::Press {
+                match key_event.code {
+                    KeyCode::Backspace => {
+                        if !result.is_empty() {
+                            result.truncate(result.len() - 1);
+                        }
+                    },
+                    KeyCode::Enter => break,
+                    KeyCode::Char(c) => {
+                        result.push(c);
+                    },
+                    KeyCode::Esc => {
+                        result.truncate(0);
+                        break;
+                    }
+                    _ => ()
+                }
+            }
+        }
+        self.status_message = StatusMessage::from(String::new());
+        if result.is_empty() {
+            return Ok(None);
+        }
+        Ok(Some(result))
     }
 }
 
