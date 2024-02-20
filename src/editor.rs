@@ -13,6 +13,7 @@ use crossterm::{
 const STATUS_FG_COLOR:Color = Color::DarkGreen;
 const STATUS_BG_COLOR:Color = Color::Grey;
 const VERSION: &str = env!("CARGO_PKG_VERSION");
+const QUIT_TIMES: u8 = 3;
 
 #[derive(Default)]
 pub struct  Position {
@@ -38,6 +39,7 @@ pub struct Editor {
     offset: Position,
     document: Document,
     status_message: StatusMessage,
+    quit_times: u8,
 }
 
 impl Editor{
@@ -85,6 +87,7 @@ impl Editor{
             offset: Position::default(),
             document: document,
             status_message: StatusMessage::from(initial_status),
+            quit_times: QUIT_TIMES,
         }
     }
     fn save(&mut self) {
@@ -108,7 +111,17 @@ impl Editor{
         let KeyEvent{code, modifiers, kind, .. } = Terminal::read_key_event()?;
         if kind==KeyEventKind::Press {
             match code {
-                KeyCode::Char('q') if modifiers.contains(KeyModifiers::CONTROL) => self.should_quit = true,
+                KeyCode::Char('q') if modifiers.contains(KeyModifiers::CONTROL) => {
+                    if self.quit_times > 0 && self.document.is_dirty() {
+                        self.status_message = StatusMessage::from(format!(
+                            "WARNING! File has unsaved changes. Press Ctrl-Q {} more times to quit.",
+                            self.quit_times
+                        ));
+                        self.quit_times -= 1;
+                        return Ok(());
+                    }
+                    self.should_quit = true;
+                },
                 KeyCode::Char('s') if modifiers.contains(KeyModifiers::CONTROL) => self.save(),
                 KeyCode::Char(c) => {
                     self.document.insert(&self.cursor_position, c);
@@ -131,6 +144,10 @@ impl Editor{
             }
         }
         self.scroll();
+        if self.quit_times < QUIT_TIMES {
+            self.quit_times = QUIT_TIMES;
+            self.status_message = StatusMessage::from(String::new());
+        }
         Ok(())
     }
 
