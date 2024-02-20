@@ -1,4 +1,4 @@
-use std::{cmp, result};
+use std::cmp;
 use unicode_segmentation::UnicodeSegmentation;
 #[derive(Default)]
 pub struct Row {
