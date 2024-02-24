@@ -15,7 +15,7 @@ const STATUS_BG_COLOR:Color = Color::Grey;
 const VERSION: &str = env!("CARGO_PKG_VERSION");
 const QUIT_TIMES: u8 = 3;
 
-#[derive(Default)]
+#[derive(Default, Clone)]
 pub struct  Position {
     pub x: usize,
     pub y: usize,
@@ -91,7 +91,7 @@ impl Editor{
     }
     fn save(&mut self) {
         if self.document.file_name.is_none() {
-            let new_name = self.prompt("Save as: ").unwrap_or(None);
+            let new_name = self.prompt("Save as: ", |_, _, _| {}).unwrap_or(None);
             if new_name.is_none() {
                 self.status_message = StatusMessage::from("Save aborted.".to_string());
                 return;
@@ -105,6 +105,29 @@ impl Editor{
             self.status_message = StatusMessage::from("Error writing file!".to_string());     
 
         }
+    }
+
+    fn search(&mut self) {
+        let old_position = self.cursor_position.clone();
+        if let Some(query) = self
+            .prompt("Search: ", |editor, _, query | {
+                if let Some(position) = editor.document.find(query) {
+                    editor.cursor_position = position;
+                    editor.scroll();
+                
+                }                
+            })
+            .unwrap_or(None) 
+            {
+                if let Some(position) = self.document.find(&query) {
+                    self.cursor_position = position;
+                } else {
+                    self.status_message = StatusMessage::from(format!("Not found :{query}."));
+                }
+            } else {
+                self.cursor_position = old_position;
+                self.scroll();
+            }
     }
     fn process_keypress(&mut self) -> Result<(), std::io::Error> {
         let KeyEvent{code, modifiers, kind, .. } = Terminal::read_key_event()?;
@@ -122,15 +145,7 @@ impl Editor{
                     self.should_quit = true;
                 },
                 KeyCode::Char('s') if modifiers.contains(KeyModifiers::CONTROL) => self.save(),
-                KeyCode::Char('f') if modifiers.contains(KeyModifiers::CONTROL) => {
-                    if let Some(query) = self.prompt("Search:").unwrap_or(None) {
-                        if let Some(position) = self.document.find(&query) {
-                            self.cursor_position = position;
-                        } else {
-                            self.status_message = StatusMessage::from(format!("Not found :{query}."));
-                        }
-                    }
-                },
+                KeyCode::Char('f') if modifiers.contains(KeyModifiers::CONTROL) => self.search(),
                 KeyCode::Char(c) => {
                     self.document.insert(&self.cursor_position, c);
                     self.move_cursor(KeyCode::Right);
@@ -340,13 +355,16 @@ impl Editor{
             print!("{}", text)
         }
     }
-    fn prompt(&mut self, prompt: &str) -> Result<Option<String>, std::io::Error> {
+    fn prompt<C>(&mut self, prompt: &str, callback: C) -> Result<Option<String>, std::io::Error> 
+    where
+        C: Fn(&mut Self, KeyEvent, &String),
+    {
         let mut result = String::new();
         loop {
             self.status_message = StatusMessage::from(format!("{}{}", prompt, result));
             self.refresh_screen()?;
             let key_event = Terminal::read_key_event()?; 
-            if key_event.kind == KeyEventKind::Press {
+            if key_event.kind == KeyEventKind::Press { 
                 match key_event.code {
                     KeyCode::Backspace => result.truncate(result.len().saturating_sub(1)),
                     KeyCode::Enter => break,
@@ -359,6 +377,7 @@ impl Editor{
                     }
                     _ => ()
                 }
+                callback(self, key_event, &result);
             }
         }
         self.status_message = StatusMessage::from(String::new());
